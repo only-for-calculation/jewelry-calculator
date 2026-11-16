@@ -46,6 +46,8 @@ jobs:
 
       - name: Commit updated rates
 
+        shell: bash
+
         run: |
 
           git config user.name "github-actions[bot]"
@@ -64,4 +66,4 @@ jobs:
 
             git push
 
-          f
+          fi

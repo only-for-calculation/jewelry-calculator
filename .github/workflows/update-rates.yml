@@ -1,0 +1,37 @@
+name: Update Housho Rates
+
+on:
+
+  schedule:
+
+    - cron: '7,37 * * * *'
+
+  workflow_dispatch:
+
+permissions:
+
+  contents: read
+
+jobs:
+
+  update-rates:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout repository
+
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+
+        uses: actions/setup-python@v5
+
+        with:
+
+          python-version: '3.12'
+
+      - name: Fetch Housho rates
+
+        run: python fetch_rates.py

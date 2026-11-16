@@ -92,7 +92,7 @@ a{color:#26698a}
 
 <label for="gross">地金重量（g）</label>
 
-<input id="gross" type="number" min="0" step="0.01" inputmode="decimal" value="10">
+<input id="gross" type="number" min="0" step="0.01" inputmode="decimal" value="">
 
 <div class="gem-section">
 
@@ -104,7 +104,7 @@ a{color:#26698a}
 
 <label for="ct1">石目（ct）</label>
 
-<input id="ct1" type="number" min="0" step="0.01" inputmode="decimal" value="0">
+<input id="ct1" type="number" min="0" step="0.01" inputmode="decimal" value="">
 
 </div>
 
@@ -112,7 +112,7 @@ a{color:#26698a}
 
 <label for="price1">単価（円/ct）</label>
 
-<input id="price1" type="number" min="0" step="1" inputmode="numeric" value="0">
+<input id="price1" type="number" min="0" step="1" inputmode="numeric" value="">
 
 </div>
 
@@ -132,7 +132,7 @@ a{color:#26698a}
 
 <label for="ct2">石目（ct）</label>
 
-<input id="ct2" type="number" min="0" step="0.01" inputmode="decimal" value="0">
+<input id="ct2" type="number" min="0" step="0.01" inputmode="decimal" value="">
 
 </div>
 
@@ -140,7 +140,7 @@ a{color:#26698a}
 
 <label for="price2">単価（円/ct）</label>
 
-<input id="price2" type="number" min="0" step="1" inputmode="numeric" value="0">
+<input id="price2" type="number" min="0" step="1" inputmode="numeric" value="">
 
 </div>
 
@@ -328,7 +328,7 @@ let gross=Number($('gross').value);
 
 let rate=Number($('rate').value);
 
-let valid=['gross','rate','ct1','price1','ct2','price2'].every(id=>
+let valid=['gross','rate'].every(id=>
 
 $(id).value!==''&&
 
@@ -338,9 +338,17 @@ Number($(id).value)>=0
 
 );
 
-if(!valid){
+let gemValid=['ct1','price1','ct2','price2'].every(id=>
 
-$('total').textContent='入力を確認';
+$(id).value===''||
+
+(Number.isFinite(Number($(id).value))&&Number($(id).value)>=0)
+
+);
+
+if(!valid||!gemValid){
+
+$('total').textContent=valid?'入力を確認':'—';
 
 ['net','metal','gem','gem1','gem2'].forEach(id=>$(id).textContent='—');
 
@@ -352,9 +360,9 @@ let net=Math.floor((gross+1e-9)*10)/10;
 
 let metal=Math.floor(net*rate);
 
-let g1=Math.floor(Number($('ct1').value)*Number($('price1').value));
+let g1=Math.floor(Number($('ct1').value||0)*Number($('price1').value||0));
 
-let g2=Math.floor(Number($('ct2').value)*Number($('price2').value));
+let g2=Math.floor(Number($('ct2').value||0)*Number($('price2').value||0));
 
 let gem=g1+g2;
 
@@ -424,9 +432,9 @@ let s=`品位：${$('grade').value}
 
 地金代：${$('metal').textContent}
 
-宝石①：${$('ct1').value}ct × ${$('price1').value}円/ct = ${$('gem1').textContent}
+宝石①：${$('ct1').value||0}ct × ${$('price1').value||0}円/ct = ${$('gem1').textContent}
 
-宝石②：${$('ct2').value}ct × ${$('price2').value}円/ct = ${$('gem2').textContent}
+宝石②：${$('ct2').value||0}ct × ${$('price2').value||0}円/ct = ${$('gem2').textContent}
 
 宝石代合計：${$('gem').textContent}
 
@@ -544,7 +552,7 @@ $('status').textContent='自動取得を確認できません：'+e.message;
 
 }
 
-calc();
+showRate();
 
 updateRates();
 

@@ -1,6 +1,577 @@
-<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#172c38"><title>宝正相場・個人用地金計算</title><style>*{box-sizing:border-box}body{margin:0;background:#eef2f4;color:#152b36;font-family:-apple-system,BlinkMacSystemFont,'Hiragino Kaku Gothic ProN',sans-serif}.wrap{max-width:480px;margin:auto;padding:24px 16px 50px}h1{font-size:23px;margin:0 0 5px}.sub{font-size:12px;color:#62717b;margin:0 0 20px}.card{background:white;border-radius:17px;padding:18px;box-shadow:0 4px 18px #162c3810;margin-bottom:15px}label{font-size:13px;font-weight:700;display:block;margin:13px 0 6px}input,select{width:100%;border:1px solid #cbd4d9;border-radius:11px;padding:13px;font-size:18px;background:#fff;color:#152b36}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.muted{color:#6a7880;font-size:12px;line-height:1.65}.result{background:#172c38;color:white;border-radius:17px;padding:20px;margin-bottom:15px}.result strong{font-size:35px;display:block;margin:9px 0}.result small{color:#c2d2db}.row{display:flex;justify-content:space-between;gap:12px;padding:7px 0;font-size:14px}.btn{width:100%;border:0;border-radius:11px;background:#b18c4e;color:white;font-size:16px;font-weight:700;padding:14px;margin-top:12px}.outline{background:#e9eff2;color:#1a3644}.gem-section{margin-top:18px;padding:14px;border:1px solid #dce4e8;border-radius:12px}.gem-section b{font-size:15px}.gem-section .muted{margin:9px 0 0}.warn{background:#fff4d9;padding:10px;border-radius:10px;color:#76531b;font-size:12px;line-height:1.6}a{color:#26698a}#status{font-size:12px;margin-top:8px}</style><link rel="manifest" href="./manifest.webmanifest"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="買取計算"></head><body><div class="wrap"><h1>地金買取価格 計算</h1><p class="sub">個人用 / 株式会社宝正の公表単価を参考にした概算</p><div class="card"><div class="warn" id="freshness">宝正公式サイト掲載の2026年11月6日13:30の全品位・コンビ・インゴット参考単価を収録。最新価格ではありません。自動取得は未接続です。</div><label for="grade">品位・種類</label><select id="grade"></select><label for="rate">1gあたり買取単価（円）</label><input id="rate" type="number" min="0" step="1" inputmode="numeric"><label for="gross">地金重量（g）</label><input id="gross" type="number" min="0" step="0.01" inputmode="decimal" value="10"><div class="gem-section"><b>宝石①</b><div class="two"><div><label for="ct1">石目（ct）</label><input id="ct1" type="number" min="0" step="0.01" inputmode="decimal" value="0"></div><div><label for="price1">単価（円/ct）</label><input id="price1" type="number" min="0" step="1" inputmode="numeric" value="0"></div></div><p class="muted">宝石① 査定額：<strong id="gem1">0 円</strong></p></div><div class="gem-section"><b>宝石②</b><div class="two"><div><label for="ct2">石目（ct）</label><input id="ct2" type="number" min="0" step="0.01" inputmode="decimal" value="0"></div><div><label for="price2">単価（円/ct）</label><input id="price2" type="number" min="0" step="1" inputmode="numeric" value="0"></div></div><p class="muted">宝石② 査定額：<strong id="gem2">0 円</strong></p></div></div><div class="result"><small>概算買取金額</small><strong id="total">—</strong><div class="row"><span>地金重量</span><span id="net">—</span></div><div class="row"><span>地金代</span><span id="metal">—</span></div><div class="row"><span>宝石代</span><span id="gem">—</span></div></div><div class="card"><b>相場の更新</b><p class="muted">金・プラチナ・銀・コンビ・インゴットの公表単価を登録済みです（2026年11月6日13:30）。最新の単価は公式サイトで確認し、必要に応じて入力してください。自動取得は取得方法と利用条件の確認後に接続します。</p><a href="https://www.housho-diamond.co.jp/" target="_blank" rel="noopener">宝正の公式買取価格を確認する ↗</a><button class="btn outline" id="reset">選択中の品位を初期単価に戻す</button><button class="btn" id="copy">計算結果をコピー</button><p id="status" aria-live="polite"></p></div><p class="muted">入力した地金重量の小数第2位以下を切り捨て、0.1g単位で計算。実際の査定金額は品位検査・適用条件等によって変わります。非公式・個人用ツールです。入力した値は端末内に保存されます。</p></div><script>
-const initial={'K24':21961,'K22':20084,'K21.6':19651,'K20':18217,'K18':16763,'K14':12564,'K10':8817,'K9':7795,'K18WG':16773,'Pt1000':8012,'Pt950':7644,'Pt900':7715,'Pt900（ダイヤ付き）':7865,'Pt850':7308,'Pt850（ダイヤ付き）':7458,'SV1000':259,'SV925':231,'金インゴット':22380,'Pt1000インゴット':8147,'K18/Pt900（9:1）':15698,'K18/Pt900（8:2）':14727,'K18/Pt900（7:3）':13784,'K18/Pt900（6:4）':12841,'K18/Pt900（5:5）':11939,'K18/Pt900（4:6）':10954,'K18/Pt900（3:7）':10011,'K18/Pt900（2:8）':9068,'K18/Pt900（1:9）':8171,'K18/Pt850（9:1）':15687,'K18/Pt850（8:2）':14645,'K18/Pt850（7:3）':13662,'K18/Pt850（6:4）':12678,'K18/Pt850（5:5）':11735,'K18/Pt850（4:6）':10710,'K18/Pt850（3:7）':9726,'K18/Pt850（2:8）':8743,'K18/Pt850（1:9）':7805};
-const $=id=>document.getElementById(id);const fmt=n=>Math.floor(n).toLocaleString('ja-JP');let custom={};try{custom=JSON.parse(localStorage.getItem('housho-rates')||'{}')}catch(e){};let lastGrade=localStorage.getItem('housho-grade')||'K18';Object.keys(initial).forEach(k=>{let o=document.createElement('option');o.value=k;o.textContent=k;$('grade').appendChild(o)});$('grade').value=initial[lastGrade]?lastGrade:'K18';function rateFor(k){return Object.prototype.hasOwnProperty.call(custom,k)?custom[k]:initial[k]}$('rate').value=rateFor($('grade').value);
-function calc(){let gross=Number($('gross').value),rate=Number($('rate').value);let valid=['gross','rate','ct1','price1','ct2','price2'].every(id=>$(id).value!==''&&Number.isFinite(Number($(id).value))&&Number($(id).value)>=0);if(!valid){$('total').textContent='入力を確認';['net','metal','gem','gem1','gem2'].forEach(id=>$(id).textContent='—');return}let net=Math.floor((gross+1e-9)*10)/10,metal=Math.floor(net*rate),g1=Math.floor(Number($('ct1').value)*Number($('price1').value)),g2=Math.floor(Number($('ct2').value)*Number($('price2').value)),gem=g1+g2,total=metal+gem;$('net').textContent=net.toFixed(1)+' g';$('metal').textContent=fmt(metal)+' 円';$('gem1').textContent=fmt(g1)+' 円';$('gem2').textContent=fmt(g2)+' 円';$('gem').textContent=fmt(gem)+' 円';$('total').textContent=fmt(total)+' 円'}
-$('grade').addEventListener('change',()=>{$('rate').value=rateFor($('grade').value);localStorage.setItem('housho-grade',$('grade').value);calc()});$('rate').addEventListener('input',()=>{if($('rate').value!==''){custom[$('grade').value]=Number($('rate').value);localStorage.setItem('housho-rates',JSON.stringify(custom))}calc()});['gross','ct1','price1','ct2','price2'].forEach(id=>$(id).addEventListener('input',calc));$('reset').addEventListener('click',()=>{delete custom[$('grade').value];localStorage.setItem('housho-rates',JSON.stringify(custom));$('rate').value=initial[$('grade').value];calc();$('status').textContent='初期単価に戻しました'});$('copy').addEventListener('click',async()=>{let s=`品位：${$('grade').value}\n単価：${$('rate').value}円/g\n地金重量：${$('net').textContent}\n地金代：${$('metal').textContent}\n宝石①：${$('ct1').value}ct × ${$('price1').value}円/ct = ${$('gem1').textContent}\n宝石②：${$('ct2').value}ct × ${$('price2').value}円/ct = ${$('gem2').textContent}\n宝石代合計：${$('gem').textContent}\n合計：${$('total').textContent}\n参考価格：2026/11/06 13:30（手動変更の可能性あり）`;try{await navigator.clipboard.writeText(s);$('status').textContent='コピーしました'}catch(e){$('status').textContent='この環境ではコピーできません'}});calc();
-</script><script>if("serviceWorker" in navigator){navigator.serviceWorker.register("./sw.js").catch(()=>{});}</script></body></html>
+
+
+<!doctype html>
+
+<html lang="ja">
+
+<head>
+
+<meta charset="utf-8">
+
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+
+<meta name="theme-color" content="#172c38">
+
+<title>宝正相場・個人用地金計算</title>
+
+<style>
+
+*{box-sizing:border-box}
+
+body{margin:0;background:#eef2f4;color:#152b36;font-family:-apple-system,BlinkMacSystemFont,'Hiragino Kaku Gothic ProN',sans-serif}
+
+.wrap{max-width:480px;margin:auto;padding:24px 16px 50px}
+
+h1{font-size:23px;margin:0 0 5px}
+
+.sub{font-size:12px;color:#62717b;margin:0 0 20px}
+
+.card{background:white;border-radius:17px;padding:18px;box-shadow:0 4px 18px #162c3810;margin-bottom:15px}
+
+label{font-size:13px;font-weight:700;display:block;margin:13px 0 6px}
+
+input,select{width:100%;border:1px solid #cbd4d9;border-radius:11px;padding:13px;font-size:18px;background:#fff;color:#152b36}
+
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+.muted{color:#6a7880;font-size:12px;line-height:1.65}
+
+.result{background:#172c38;color:white;border-radius:17px;padding:20px;margin-bottom:15px}
+
+.result strong{font-size:35px;display:block;margin:9px 0}
+
+.result small{color:#c2d2db}
+
+.row{display:flex;justify-content:space-between;gap:12px;padding:7px 0;font-size:14px}
+
+.btn{width:100%;border:0;border-radius:11px;background:#b18c4e;color:white;font-size:16px;font-weight:700;padding:14px;margin-top:12px}
+
+.outline{background:#e9eff2;color:#1a3644}
+
+.gem-section{margin-top:18px;padding:14px;border:1px solid #dce4e8;border-radius:12px}
+
+.gem-section b{font-size:15px}
+
+.gem-section .muted{margin:9px 0 0}
+
+.warn{background:#fff4d9;padding:10px;border-radius:10px;color:#76531b;font-size:12px;line-height:1.6}
+
+a{color:#26698a}
+
+#status{font-size:12px;margin-top:8px}
+
+</style>
+
+<link rel="manifest" href="./manifest.webmanifest">
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+
+<meta name="apple-mobile-web-app-title" content="買取計算">
+
+</head>
+
+<body>
+
+<div class="wrap">
+
+<h1>地金買取価格 計算</h1>
+
+<p class="sub">個人用 / 株式会社宝正の公表単価を参考にした概算</p>
+
+<div class="card">
+
+<div class="warn" id="freshness">相場データを確認しています。確認が完了するまでは2026年11月6日13:30の参考単価を表示します。</div>
+
+<label for="grade">品位・種類</label>
+
+<select id="grade"></select>
+
+<label for="rate">1gあたり買取単価（円）</label>
+
+<input id="rate" type="number" min="0" step="1" inputmode="numeric">
+
+<label for="gross">地金重量（g）</label>
+
+<input id="gross" type="number" min="0" step="0.01" inputmode="decimal" value="10">
+
+<div class="gem-section">
+
+<b>宝石①</b>
+
+<div class="two">
+
+<div>
+
+<label for="ct1">石目（ct）</label>
+
+<input id="ct1" type="number" min="0" step="0.01" inputmode="decimal" value="0">
+
+</div>
+
+<div>
+
+<label for="price1">単価（円/ct）</label>
+
+<input id="price1" type="number" min="0" step="1" inputmode="numeric" value="0">
+
+</div>
+
+</div>
+
+<p class="muted">宝石① 査定額：<strong id="gem1">0 円</strong></p>
+
+</div>
+
+<div class="gem-section">
+
+<b>宝石②</b>
+
+<div class="two">
+
+<div>
+
+<label for="ct2">石目（ct）</label>
+
+<input id="ct2" type="number" min="0" step="0.01" inputmode="decimal" value="0">
+
+</div>
+
+<div>
+
+<label for="price2">単価（円/ct）</label>
+
+<input id="price2" type="number" min="0" step="1" inputmode="numeric" value="0">
+
+</div>
+
+</div>
+
+<p class="muted">宝石② 査定額：<strong id="gem2">0 円</strong></p>
+
+</div>
+
+</div>
+
+<div class="result">
+
+<small>概算買取金額</small>
+
+<strong id="total">—</strong>
+
+<div class="row"><span>地金重量</span><span id="net">—</span></div>
+
+<div class="row"><span>地金代</span><span id="metal">—</span></div>
+
+<div class="row"><span>宝石代</span><span id="gem">—</span></div>
+
+</div>
+
+<div class="card">
+
+<b>相場の更新</b>
+
+<p class="muted">GitHub Actionsが保存した宝正の公表単価データを自動確認します。取得できない場合は参考単価を使用します。実際の最新価格は公式サイトでも確認してください。</p>
+
+<a href="https://www.housho-diamond.co.jp/" target="_blank" rel="noopener">宝正の公式買取価格を確認する ↗</a>
+
+<button class="btn outline" id="reset">選択中の品位を初期単価に戻す</button>
+
+<button class="btn" id="copy">計算結果をコピー</button>
+
+<p id="status" aria-live="polite"></p>
+
+</div>
+
+<p class="muted">入力した地金重量の小数第2位以下を切り捨て、0.1g単位で計算。実際の査定金額は品位検査・適用条件等によって変わります。非公式・個人用ツールです。手動変更した単価は端末内に保存されます。</p>
+
+</div>
+
+<script>
+
+const initial={
+
+'K24':21961,
+
+'K22':20084,
+
+'K21.6':19651,
+
+'K20':18217,
+
+'K18':16763,
+
+'K14':12564,
+
+'K10':8817,
+
+'K9':7795,
+
+'K18WG':16773,
+
+'Pt1000':8012,
+
+'Pt950':7644,
+
+'Pt900':7715,
+
+'Pt900（ダイヤ付き）':7865,
+
+'Pt850':7308,
+
+'Pt850（ダイヤ付き）':7458,
+
+'SV1000':259,
+
+'SV925':231,
+
+'金インゴット':22380,
+
+'Pt1000インゴット':8147,
+
+'K18/Pt900（9:1）':15698,
+
+'K18/Pt900（8:2）':14727,
+
+'K18/Pt900（7:3）':13784,
+
+'K18/Pt900（6:4）':12841,
+
+'K18/Pt900（5:5）':11939,
+
+'K18/Pt900（4:6）':10954,
+
+'K18/Pt900（3:7）':10011,
+
+'K18/Pt900（2:8）':9068,
+
+'K18/Pt900（1:9）':8171,
+
+'K18/Pt850（9:1）':15687,
+
+'K18/Pt850（8:2）':14645,
+
+'K18/Pt850（7:3）':13662,
+
+'K18/Pt850（6:4）':12678,
+
+'K18/Pt850（5:5）':11735,
+
+'K18/Pt850（4:6）':10710,
+
+'K18/Pt850（3:7）':9726,
+
+'K18/Pt850（2:8）':8743,
+
+'K18/Pt850（1:9）':7805
+
+};
+
+const $=id=>document.getElementById(id);
+
+const fmt=n=>Math.floor(n).toLocaleString('ja-JP');
+
+const defaultPublication='2026/11/06 13:30';
+
+let rates={...initial};
+
+let publication=defaultPublication;
+
+let isUpdated=false;
+
+let custom={};
+
+try{
+
+const saved=JSON.parse(localStorage.getItem('housho-rates')||'{}');
+
+if(saved&&typeof saved==='object'&&!Array.isArray(saved)){
+
+custom=saved;
+
+}
+
+}catch(e){}
+
+let lastGrade=localStorage.getItem('housho-grade')||'K18';
+
+Object.keys(initial).forEach(k=>{
+
+let o=document.createElement('option');
+
+o.value=k;
+
+o.textContent=k;
+
+$('grade').appendChild(o);
+
+});
+
+$('grade').value=Object.prototype.hasOwnProperty.call(initial,lastGrade)?lastGrade:'K18';
+
+function rateFor(k){
+
+return Object.prototype.hasOwnProperty.call(custom,k)?custom[k]:rates[k];
+
+}
+
+function showRate(){
+
+$('rate').value=rateFor($('grade').value);
+
+calc();
+
+}
+
+function calc(){
+
+let gross=Number($('gross').value);
+
+let rate=Number($('rate').value);
+
+let valid=['gross','rate','ct1','price1','ct2','price2'].every(id=>
+
+$(id).value!==''&&
+
+Number.isFinite(Number($(id).value))&&
+
+Number($(id).value)>=0
+
+);
+
+if(!valid){
+
+$('total').textContent='入力を確認';
+
+['net','metal','gem','gem1','gem2'].forEach(id=>$(id).textContent='—');
+
+return;
+
+}
+
+let net=Math.floor((gross+1e-9)*10)/10;
+
+let metal=Math.floor(net*rate);
+
+let g1=Math.floor(Number($('ct1').value)*Number($('price1').value));
+
+let g2=Math.floor(Number($('ct2').value)*Number($('price2').value));
+
+let gem=g1+g2;
+
+let total=metal+gem;
+
+$('net').textContent=net.toFixed(1)+' g';
+
+$('metal').textContent=fmt(metal)+' 円';
+
+$('gem1').textContent=fmt(g1)+' 円';
+
+$('gem2').textContent=fmt(g2)+' 円';
+
+$('gem').textContent=fmt(gem)+' 円';
+
+$('total').textContent=fmt(total)+' 円';
+
+}
+
+$('grade').addEventListener('change',()=>{
+
+localStorage.setItem('housho-grade',$('grade').value);
+
+showRate();
+
+});
+
+$('rate').addEventListener('input',()=>{
+
+if($('rate').value!==''){
+
+custom[$('grade').value]=Number($('rate').value);
+
+localStorage.setItem('housho-rates',JSON.stringify(custom));
+
+}
+
+calc();
+
+});
+
+['gross','ct1','price1','ct2','price2'].forEach(id=>
+
+$(id).addEventListener('input',calc)
+
+);
+
+$('reset').addEventListener('click',()=>{
+
+delete custom[$('grade').value];
+
+localStorage.setItem('housho-rates',JSON.stringify(custom));
+
+showRate();
+
+$('status').textContent='取得済みの基準単価に戻しました';
+
+});
+
+$('copy').addEventListener('click',async()=>{
+
+let s=`品位：${$('grade').value}
+
+単価：${$('rate').value}円/g
+
+地金重量：${$('net').textContent}
+
+地金代：${$('metal').textContent}
+
+宝石①：${$('ct1').value}ct × ${$('price1').value}円/ct = ${$('gem1').textContent}
+
+宝石②：${$('ct2').value}ct × ${$('price2').value}円/ct = ${$('gem2').textContent}
+
+宝石代合計：${$('gem').textContent}
+
+合計：${$('total').textContent}
+
+参考価格：${publication}（手動変更の可能性あり）`;
+
+try{
+
+await navigator.clipboard.writeText(s);
+
+$('status').textContent='コピーしました';
+
+}catch(e){
+
+$('status').textContent='この環境ではコピーできません';
+
+}
+
+});
+
+function validRates(obj){
+
+if(!obj||typeof obj!=='object'||Array.isArray(obj))return false;
+
+return Object.keys(initial).every(k=>
+
+Object.prototype.hasOwnProperty.call(obj,k)&&
+
+typeof obj[k]==='number'&&
+
+Number.isFinite(obj[k])&&
+
+obj[k]>0
+
+);
+
+}
+
+function parsePublication(data){
+
+const candidates=[
+
+data.publication,
+
+data.published_at,
+
+data.updated_at,
+
+data.date
+
+];
+
+return candidates.find(v=>typeof v==='string'&&v.trim())||null;
+
+}
+
+async function updateRates(){
+
+try{
+
+const url='./rates.json?t='+Date.now();
+
+const response=await fetch(url,{cache:'no-store'});
+
+if(!response.ok)throw new Error('HTTP '+response.status);
+
+const data=await response.json();
+
+const incoming=data.rates||data.prices||data;
+
+if(!validRates(incoming)){
+
+throw new Error('37品位の単価を確認できません');
+
+}
+
+const published=parsePublication(data);
+
+if(!published){
+
+throw new Error('公表日時を確認できません');
+
+}
+
+rates={...incoming};
+
+publication=published;
+
+isUpdated=true;
+
+showRate();
+
+$('freshness').textContent=
+
+'宝正相場データ取得済み：'+publication+
+
+'。37品位の単価を読み込みました。公式サイトの最新掲載内容との一致は別途確認してください。';
+
+$('status').textContent='相場データを読み込みました';
+
+}catch(e){
+
+$('freshness').textContent=
+
+'最新相場を確認できませんでした。表示中の基準単価は'+
+
+(isUpdated?publication:defaultPublication)+
+
+'の参考値です。公式サイトで確認してください。';
+
+$('status').textContent='自動取得を確認できません：'+e.message;
+
+}
+
+}
+
+calc();
+
+updateRates();
+
+document.addEventListener('visibilitychange',()=>{
+
+if(!document.hidden)updateRates();
+
+});
+
+window.addEventListener('pageshow',()=>{
+
+updateRates();
+
+});
+
+</script>
+
+<script>
+
+if('serviceWorker' in navigator){
+
+navigator.serviceWorker.register('./sw.js').catch(()=>{});
+
+}
+
+</script>
+
+</body>
+
+</html>

@@ -178,6 +178,8 @@ a{color:#26698a}
 
 <button class="btn" id="copy">計算結果をコピー</button>
 
+<button class="btn outline" id="clear">入力内容をクリア</button>
+
 <p id="status" aria-live="polite"></p>
 
 </div>
@@ -422,37 +424,47 @@ $('status').textContent='取得済みの基準単価に戻しました';
 
 });
 
+// 概算買取金額だけをコピー
+
 $('copy').addEventListener('click',async()=>{
 
-let s=`品位：${$('grade').value}
+const amount=$('total').textContent.trim();
 
-単価：${$('rate').value}円/g
+if(!/^[\d,]+ 円$/.test(amount)){
 
-地金重量：${$('net').textContent}
+$('status').textContent='コピーできる計算結果がありません';
 
-地金代：${$('metal').textContent}
+return;
 
-宝石①：${$('ct1').value||0}ct × ${$('price1').value||0}円/ct = ${$('gem1').textContent}
-
-宝石②：${$('ct2').value||0}ct × ${$('price2').value||0}円/ct = ${$('gem2').textContent}
-
-宝石代合計：${$('gem').textContent}
-
-合計：${$('total').textContent}
-
-参考価格：${publication}（手動変更の可能性あり）`;
+}
 
 try{
 
-await navigator.clipboard.writeText(s);
+await navigator.clipboard.writeText(amount);
 
-$('status').textContent='コピーしました';
+$('status').textContent='概算買取金額だけをコピーしました';
 
 }catch(e){
 
 $('status').textContent='この環境ではコピーできません';
 
 }
+
+});
+
+// 地金重量と宝石①②の入力欄を一括クリア
+
+$('clear').addEventListener('click',()=>{
+
+['gross','ct1','price1','ct2','price2'].forEach(id=>{
+
+$(id).value='';
+
+});
+
+calc();
+
+$('status').textContent='入力内容をクリアしました';
 
 });
 

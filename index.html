@@ -38,7 +38,7 @@ input,select{width:100%;border:1px solid #cbd4d9;border-radius:11px;padding:13px
 
 .result{background:#172c38;color:white;border-radius:17px;padding:20px;margin-bottom:15px}
 
-.result strong{font-size:35px;display:block;margin:9px 0}
+.result strong{font-size:clamp(20px,5vw,35px);overflow-wrap:anywhere;display:block;margin:9px 0}
 
 .result small{color:#c2d2db}
 
@@ -78,9 +78,11 @@ a{color:#26698a}
 
 <p class="sub">個人用 / 株式会社宝正の公表単価を参考にした概算</p>
 
+<button class="btn" id="refresh" type="button" style="margin:0 0 14px">相場を最新に更新</button>
+
 <div class="card">
 
-<div class="warn" id="freshness">相場データを確認しています。確認が完了するまでは2026年11月6日13:30の参考単価を表示します。</div>
+<div class="warn" id="freshness">相場を確認しています。通信できない場合は保存済みの参考単価を表示します。</div>
 
 <label for="grade">品位・種類</label>
 
@@ -110,9 +112,13 @@ a{color:#26698a}
 
 <div>
 
-<label for="price1">単価（円/ct）</label>
+<label for="price1">単価・下限（円/ct）</label>
 
 <input id="price1" type="number" min="0" step="1" inputmode="numeric" value="">
+
+<label for="price1max">単価・上限（円/ct）</label>
+
+<input id="price1max" type="number" min="0" step="1" inputmode="numeric" value="">
 
 </div>
 
@@ -138,9 +144,13 @@ a{color:#26698a}
 
 <div>
 
-<label for="price2">単価（円/ct）</label>
+<label for="price2">単価・下限（円/ct）</label>
 
 <input id="price2" type="number" min="0" step="1" inputmode="numeric" value="">
+
+<label for="price2max">単価・上限（円/ct）</label>
+
+<input id="price2max" type="number" min="0" step="1" inputmode="numeric" value="">
 
 </div>
 
@@ -170,7 +180,7 @@ a{color:#26698a}
 
 <b>相場の更新</b>
 
-<p class="muted">GitHub Actionsが保存した宝正の公表単価データを自動確認します。取得できない場合は参考単価を使用します。実際の最新価格は公式サイトでも確認してください。</p>
+<p class="muted" id="rate-info">GitHubに保存された宝正公表単価を読み込みます。画面を開いたときと、表示中は30分ごとに確認します。</p>
 
 <a href="https://www.housho-diamond.co.jp/" target="_blank" rel="noopener">宝正の公式買取価格を確認する ↗</a>
 
@@ -184,7 +194,7 @@ a{color:#26698a}
 
 </div>
 
-<p class="muted">入力した地金重量の小数第2位以下を切り捨て、0.1g単位で計算。実際の査定金額は品位検査・適用条件等によって変わります。非公式・個人用ツールです。手動変更した単価は端末内に保存されます。</p>
+<p class="muted">入力した地金重量の小数第2位以下を切り捨て、0.1g単位で計算。実際の査定金額は品位検査・適用条件等によって変わります。非公式・個人用ツールです。取得した相場は端末内に保存されます。</p>
 
 </div>
 
@@ -192,43 +202,21 @@ a{color:#26698a}
 
 const initial={
 
-'K24':21961,
+'K24':21961,'K22':20084,'K21.6':19651,
 
-'K22':20084,
+'K20':18217,'K18':16763,'K14':12564,
 
-'K21.6':19651,
+'K10':8817,'K9':7795,'K18WG':16773,
 
-'K20':18217,
+'Pt1000':8012,'Pt950':7644,'Pt900':7715,
 
-'K18':16763,
-
-'K14':12564,
-
-'K10':8817,
-
-'K9':7795,
-
-'K18WG':16773,
-
-'Pt1000':8012,
-
-'Pt950':7644,
-
-'Pt900':7715,
-
-'Pt900（ダイヤ付き）':7865,
-
-'Pt850':7308,
+'Pt900（ダイヤ付き）':7865,'Pt850':7308,
 
 'Pt850（ダイヤ付き）':7458,
 
-'SV1000':259,
+'SV1000':259,'SV925':231,
 
-'SV925':231,
-
-'金インゴット':22380,
-
-'Pt1000インゴット':8147,
+'金インゴット':22380,'Pt1000インゴット':8147,
 
 'K18/Pt900（9:1）':15698,
 
@@ -272,311 +260,321 @@ const $=id=>document.getElementById(id);
 
 const fmt=n=>Math.floor(n).toLocaleString('ja-JP');
 
-const defaultPublication='2026/11/06 13:30';
+const STORE='housho-auto-rates-v1';
 
 let rates={...initial};
 
-let publication=defaultPublication;
+let published='2026/11/06 13:30';
 
-let isUpdated=false;
-
-let custom={};
-
-try{
-
-const saved=JSON.parse(localStorage.getItem('housho-rates')||'{}');
-
-if(saved&&typeof saved==='object'&&!Array.isArray(saved)){
-
-custom=saved;
-
-}
-
-}catch(e){}
+let sourceState='初期参考単価';
 
 let lastGrade=localStorage.getItem('housho-grade')||'K18';
 
-Object.keys(initial).forEach(k=>{
+function validRates(r){
 
-let o=document.createElement('option');
+ return !!r&&typeof r==='object'&&
 
-o.value=k;
+ Object.keys(initial).every(k=>
 
-o.textContent=k;
+ typeof r[k]==='number'&&
 
-$('grade').appendChild(o);
-
-});
-
-$('grade').value=Object.prototype.hasOwnProperty.call(initial,lastGrade)?lastGrade:'K18';
-
-function rateFor(k){
-
-return Object.prototype.hasOwnProperty.call(custom,k)?custom[k]:rates[k];
+ Number.isFinite(r[k])&&r[k]>=0);
 
 }
 
-function showRate(){
+try{
+
+ const saved=JSON.parse(localStorage.getItem(STORE)||'null');
+
+ if(saved&&validRates(saved.rates)){
+
+  rates={...saved.rates};
+
+  published=saved.published_at;
+
+  sourceState='保存済み相場（通信確認前）';
+
+ }
+
+}catch(e){}
+
+Object.keys(initial).forEach(k=>{
+
+ let o=document.createElement('option');
+
+ o.value=k;
+
+ o.textContent=k;
+
+ $('grade').appendChild(o);
+
+});
+
+$('grade').value=
+
+Object.prototype.hasOwnProperty.call(initial,lastGrade)
+
+?lastGrade:'K18';
+
+function rateFor(k){return rates[k]}
 
 $('rate').value=rateFor($('grade').value);
 
-calc();
+function showFreshness(message){
+
+ $('freshness').textContent=message;
+
+ $('rate-info').textContent=
+
+ '公表日時：'+published+
+
+ '。画面を開いたときと表示中30分ごとに、GitHubに保存された相場を確認します。';
+
+}
+
+showFreshness(sourceState+'：'+published+'。最新かどうかは未確認です。');
+
+const val=id=>Number($(id).value||0);
+
+function rangeText(min,max){
+
+ return fmt(min)+'円-'+fmt(max)+'円';
 
 }
 
 function calc(){
 
-let gross=Number($('gross').value);
+ const ids=['gross','rate','ct1','price1','price1max','ct2','price2','price2max'];
 
-let rate=Number($('rate').value);
+ const valid=ids.every(id=>
 
-let valid=['gross','rate'].every(id=>
+ $(id).value===''||
 
-$(id).value!==''&&
+ (Number.isFinite(Number($(id).value))&&Number($(id).value)>=0)
 
-Number.isFinite(Number($(id).value))&&
+ );
 
-Number($(id).value)>=0
+ const ordered=val('price1')<=val('price1max')&&
 
-);
+ val('price2')<=val('price2max');
 
-let gemValid=['ct1','price1','ct2','price2'].every(id=>
+ if(!valid||!ordered){
 
-$(id).value===''||
+  $('total').textContent='入力を確認';
 
-(Number.isFinite(Number($(id).value))&&Number($(id).value)>=0)
+  ['net','metal','gem','gem1','gem2'].forEach(id=>$(id).textContent='—');
 
-);
+  return;
 
-if(!valid||!gemValid){
+ }
 
-$('total').textContent=valid?'入力を確認':'—';
+ const net=Math.floor((val('gross')+1e-9)*10)/10;
 
-['net','metal','gem','gem1','gem2'].forEach(id=>$(id).textContent='—');
+ const metal=Math.floor(net*val('rate'));
 
-return;
+ const g1min=Math.floor(val('ct1')*val('price1'));
 
-}
+ const g1max=Math.floor(val('ct1')*val('price1max'));
 
-let net=Math.floor((gross+1e-9)*10)/10;
+ const g2min=Math.floor(val('ct2')*val('price2'));
 
-let metal=Math.floor(net*rate);
+ const g2max=Math.floor(val('ct2')*val('price2max'));
 
-let g1=Math.floor(Number($('ct1').value||0)*Number($('price1').value||0));
+ const gemMin=g1min+g2min;
 
-let g2=Math.floor(Number($('ct2').value||0)*Number($('price2').value||0));
+ const gemMax=g1max+g2max;
 
-let gem=g1+g2;
+ $('net').textContent=net.toFixed(1)+' g';
 
-let total=metal+gem;
+ $('metal').textContent=fmt(metal)+' 円';
 
-$('net').textContent=net.toFixed(1)+' g';
+ $('gem1').textContent=rangeText(g1min,g1max);
 
-$('metal').textContent=fmt(metal)+' 円';
+ $('gem2').textContent=rangeText(g2min,g2max);
 
-$('gem1').textContent=fmt(g1)+' 円';
+ $('gem').textContent=rangeText(gemMin,gemMax);
 
-$('gem2').textContent=fmt(g2)+' 円';
-
-$('gem').textContent=fmt(gem)+' 円';
-
-$('total').textContent=fmt(total)+' 円';
+ $('total').textContent=rangeText(metal+gemMin,metal+gemMax);
 
 }
 
 $('grade').addEventListener('change',()=>{
 
-localStorage.setItem('housho-grade',$('grade').value);
+ $('rate').value=rateFor($('grade').value);
 
-showRate();
+ localStorage.setItem('housho-grade',$('grade').value);
+
+ calc();
 
 });
 
 $('rate').addEventListener('input',()=>{
 
-if($('rate').value!==''){
+ calc();
 
-custom[$('grade').value]=Number($('rate').value);
-
-localStorage.setItem('housho-rates',JSON.stringify(custom));
-
-}
-
-calc();
+ $('status').textContent='手動入力中です。次の自動取得成功時に公表単価へ戻ります。';
 
 });
 
-['gross','ct1','price1','ct2','price2'].forEach(id=>
+['gross','ct1','price1','price1max','ct2','price2','price2max']
 
-$(id).addEventListener('input',calc)
-
-);
+.forEach(id=>$(id).addEventListener('input',calc));
 
 $('reset').addEventListener('click',()=>{
 
-delete custom[$('grade').value];
+ $('rate').value=rateFor($('grade').value);
 
-localStorage.setItem('housho-rates',JSON.stringify(custom));
+ calc();
 
-showRate();
-
-$('status').textContent='取得済みの基準単価に戻しました';
+ $('status').textContent='取得済みの基準単価に戻しました';
 
 });
-
-// 概算買取金額だけをコピー
 
 $('copy').addEventListener('click',async()=>{
 
-const amount=$('total').textContent.trim();
+ if($('total').textContent==='入力を確認'){
 
-if(!/^[\d,]+ 円$/.test(amount)){
+  $('status').textContent='入力内容を確認してください';
 
-$('status').textContent='コピーできる計算結果がありません';
+  return;
 
-return;
+ }
 
-}
+ const s=$('total').textContent;
 
-try{
+ try{
 
-await navigator.clipboard.writeText(amount);
+  await navigator.clipboard.writeText(s);
 
-$('status').textContent='概算買取金額だけをコピーしました';
+  $('status').textContent='概算買取額の下限〜上限をコピーしました';
 
-}catch(e){
+ }catch(e){
 
-$('status').textContent='この環境ではコピーできません';
+  $('status').textContent='この環境ではコピーできません';
 
-}
+ }
 
 });
-
-// 地金重量と宝石①②の入力欄を一括クリア
 
 $('clear').addEventListener('click',()=>{
 
-['gross','ct1','price1','ct2','price2'].forEach(id=>{
+ ['gross','ct1','price1','price1max','ct2','price2','price2max']
 
-$(id).value='';
+ .forEach(id=>$(id).value='');
 
-});
+ calc();
 
-calc();
-
-$('status').textContent='入力内容をクリアしました';
+ $('status').textContent='入力内容をクリアしました';
 
 });
 
-function validRates(obj){
+let fetching=false;
 
-if(!obj||typeof obj!=='object'||Array.isArray(obj))return false;
-
-return Object.keys(initial).every(k=>
-
-Object.prototype.hasOwnProperty.call(obj,k)&&
-
-typeof obj[k]==='number'&&
-
-Number.isFinite(obj[k])&&
-
-obj[k]>0
-
-);
-
-}
-
-function parsePublication(data){
-
-const candidates=[
-
-data.publication,
-
-data.published_at,
-
-data.updated_at,
-
-data.date
-
-];
-
-return candidates.find(v=>typeof v==='string'&&v.trim())||null;
-
-}
+$('refresh').addEventListener('click',()=>updateRates());
 
 async function updateRates(){
 
-try{
+ if(fetching)return;
 
-const url='./rates.json?t='+Date.now();
+ fetching=true;
 
-const response=await fetch(url,{cache:'no-store'});
+ $('refresh').disabled=true;
 
-if(!response.ok)throw new Error('HTTP '+response.status);
+ $('refresh').textContent='相場を確認中…';
 
-const data=await response.json();
+ try{
 
-const incoming=data.rates||data.prices||data;
+  const response=await fetch('./rates.json?t='+Date.now(),{cache:'no-store'});
 
-if(!validRates(incoming)){
+  if(!response.ok)throw new Error('HTTP '+response.status);
 
-throw new Error('37品位の単価を確認できません');
+  const data=await response.json();
+
+  if(!validRates(data.rates)||
+
+     typeof data.published_at!=='string'||
+
+     !data.published_at.trim()){
+
+   throw new Error('データ形式が不正です');
+
+  }
+
+  rates=Object.fromEntries(
+
+   Object.keys(initial).map(k=>[k,data.rates[k]])
+
+  );
+
+  published=data.published_at;
+
+  sourceState='自動取得済み';
+
+  try{
+
+   localStorage.setItem(STORE,JSON.stringify({
+
+    rates,published_at:published
+
+   }));
+
+  }catch(e){}
+
+  $('rate').value=rateFor($('grade').value);
+
+  calc();
+
+  showFreshness(
+
+   '宝正公表単価：'+published+
+
+   '（GitHub保存データから取得）。取得確認：'+
+
+   new Date().toLocaleString('ja-JP')+'。'
+
+  );
+
+  $('status').textContent='相場データを取得しました。公表日時：'+published;
+
+ }catch(e){
+
+  sourceState='通信失敗・保存済み参考単価';
+
+  showFreshness(
+
+   '最新相場を確認できませんでした。表示中の単価は'+
+
+   published+'の参考値です。公式サイトで確認してください。'
+
+  );
+
+  $('status').textContent='相場取得エラー：'+e.message;
+
+ }finally{
+
+  fetching=false;
+
+  $('refresh').disabled=false;
+
+  $('refresh').textContent='相場を最新に更新';
+
+ }
 
 }
 
-const published=parsePublication(data);
-
-if(!published){
-
-throw new Error('公表日時を確認できません');
-
-}
-
-rates={...incoming};
-
-publication=published;
-
-isUpdated=true;
-
-showRate();
-
-$('freshness').textContent=
-
-'宝正相場データ取得済み：'+publication+
-
-'。37品位の単価を読み込みました。公式サイトの最新掲載内容との一致は別途確認してください。';
-
-$('status').textContent='相場データを読み込みました';
-
-}catch(e){
-
-$('freshness').textContent=
-
-'最新相場を確認できませんでした。表示中の基準単価は'+
-
-(isUpdated?publication:defaultPublication)+
-
-'の参考値です。公式サイトで確認してください。';
-
-$('status').textContent='自動取得を確認できません：'+e.message;
-
-}
-
-}
-
-showRate();
+calc();
 
 updateRates();
+
+setInterval(()=>{
+
+ if(!document.hidden)updateRates();
+
+},30*60*1000);
 
 document.addEventListener('visibilitychange',()=>{
 
-if(!document.hidden)updateRates();
-
-});
-
-window.addEventListener('pageshow',()=>{
-
-updateRates();
+ if(!document.hidden)updateRates();
 
 });
 
@@ -586,7 +584,7 @@ updateRates();
 
 if('serviceWorker' in navigator){
 
-navigator.serviceWorker.register('./sw.js').catch(()=>{});
+ navigator.serviceWorker.register('./sw.js').catch(()=>{});
 
 }
 

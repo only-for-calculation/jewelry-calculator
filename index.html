@@ -180,7 +180,7 @@ a{color:#26698a}
 
 <b>相場の更新</b>
 
-<p class="muted" id="rate-info">GitHubに保存された宝正公表単価を読み込みます。画面を開いたときと、表示中は30分ごとに確認します。</p>
+<p class="muted" id="rate-info">GitHubに保存された宝正公表単価を読み込みます。画面を開いたときと、表示中は5分ごとに確認します。</p>
 
 <a href="https://www.housho-diamond.co.jp/" target="_blank" rel="noopener">宝正の公式買取価格を確認する ↗</a>
 
@@ -210,9 +210,9 @@ const initial={
 
 'Pt1000':8012,'Pt950':7644,'Pt900':7715,
 
-'Pt900（ダイヤ付き）':7865,'Pt850':7308,
+'Pt900（ダイヤ付き）':7865,
 
-'Pt850（ダイヤ付き）':7458,
+'Pt850':7308,'Pt850（ダイヤ付き）':7458,
 
 'SV1000':259,'SV925':231,
 
@@ -276,9 +276,7 @@ function validRates(r){
 
  Object.keys(initial).every(k=>
 
- typeof r[k]==='number'&&
-
- Number.isFinite(r[k])&&r[k]>=0);
+ typeof r[k]==='number'&&Number.isFinite(r[k])&&r[k]>=0);
 
 }
 
@@ -328,7 +326,7 @@ function showFreshness(message){
 
  '公表日時：'+published+
 
- '。画面を開いたときと表示中30分ごとに、GitHubに保存された相場を確認します。';
+ '。画面を開いたときと表示中5分ごとに、GitHubに保存された相場を確認します。';
 
 }
 
@@ -336,11 +334,15 @@ showFreshness(sourceState+'：'+published+'。最新かどうかは未確認で�
 
 const val=id=>Number($(id).value||0);
 
-function rangeText(min,max){
+function money(n){return fmt(n)+'円'}
 
- return fmt(min)+'円-'+fmt(max)+'円';
+function displayRange(low,high,hasUpper){
+
+ return hasUpper?money(low)+'-'+money(high):money(low);
 
 }
+
+let copyValue='';
 
 function calc(){
 
@@ -348,17 +350,23 @@ function calc(){
 
  const valid=ids.every(id=>
 
- $(id).value===''||
+  $(id).value===''||
 
- (Number.isFinite(Number($(id).value))&&Number($(id).value)>=0)
+  (Number.isFinite(Number($(id).value))&&Number($(id).value)>=0)
 
  );
 
- const ordered=val('price1')<=val('price1max')&&
+ const ordered=[1,2].every(i=>
 
- val('price2')<=val('price2max');
+  $('price'+i+'max').value===''||
+
+  val('price'+i)<=val('price'+i+'max')
+
+ );
 
  if(!valid||!ordered){
+
+  copyValue='';
 
   $('total').textContent='入力を確認';
 
@@ -372,29 +380,39 @@ function calc(){
 
  const metal=Math.floor(net*val('rate'));
 
- const g1min=Math.floor(val('ct1')*val('price1'));
+ let lows=[],highs=[],anyUpper=false;
 
- const g1max=Math.floor(val('ct1')*val('price1max'));
+ for(let i=1;i<=2;i++){
 
- const g2min=Math.floor(val('ct2')*val('price2'));
+  const low=Math.floor(val('ct'+i)*val('price'+i));
 
- const g2max=Math.floor(val('ct2')*val('price2max'));
+  const upperEntered=$('price'+i+'max').value!=='';
 
- const gemMin=g1min+g2min;
+  const high=upperEntered?Math.floor(val('ct'+i)*val('price'+i+'max')):low;
 
- const gemMax=g1max+g2max;
+  lows.push(low);
+
+  highs.push(high);
+
+  if(upperEntered&&val('ct'+i)>0)anyUpper=true;
+
+  $('gem'+i).textContent=displayRange(low,high,upperEntered&&val('ct'+i)>0);
+
+ }
+
+ const gemLow=lows[0]+lows[1];
+
+ const gemHigh=highs[0]+highs[1];
 
  $('net').textContent=net.toFixed(1)+' g';
 
  $('metal').textContent=fmt(metal)+' 円';
 
- $('gem1').textContent=rangeText(g1min,g1max);
+ $('gem').textContent=displayRange(gemLow,gemHigh,anyUpper);
 
- $('gem2').textContent=rangeText(g2min,g2max);
+ copyValue=displayRange(metal+gemLow,metal+gemHigh,anyUpper);
 
- $('gem').textContent=rangeText(gemMin,gemMax);
-
- $('total').textContent=rangeText(metal+gemMin,metal+gemMax);
+ $('total').textContent=copyValue;
 
 }
 
@@ -432,7 +450,7 @@ $('reset').addEventListener('click',()=>{
 
 $('copy').addEventListener('click',async()=>{
 
- if($('total').textContent==='入力を確認'){
+ if(!copyValue){
 
   $('status').textContent='入力内容を確認してください';
 
@@ -440,13 +458,11 @@ $('copy').addEventListener('click',async()=>{
 
  }
 
- const s=$('total').textContent;
-
  try{
 
-  await navigator.clipboard.writeText(s);
+  await navigator.clipboard.writeText(copyValue);
 
-  $('status').textContent='概算買取額の下限〜上限をコピーしました';
+  $('status').textContent='概算買取額をコピーしました';
 
  }catch(e){
 
@@ -468,9 +484,9 @@ $('clear').addEventListener('click',()=>{
 
 });
 
-let fetching=false;
-
 $('refresh').addEventListener('click',()=>updateRates());
+
+let fetching=false;
 
 async function updateRates(){
 
@@ -534,7 +550,7 @@ async function updateRates(){
 
   );
 
-  $('status').textContent='相場データを取得しました。公表日時：'+published;
+  $('status').textContent='相場の確認が完了しました。';
 
  }catch(e){
 
@@ -570,7 +586,7 @@ setInterval(()=>{
 
  if(!document.hidden)updateRates();
 
-},30*60*1000);
+},5*60*1000);
 
 document.addEventListener('visibilitychange',()=>{
 

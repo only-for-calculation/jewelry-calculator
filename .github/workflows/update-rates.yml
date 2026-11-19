@@ -1,10 +1,12 @@
+
+
 name: Update Housho Rates
 
 on:
 
   schedule:
 
-    - cron: '7,37 * * * *'
+    - cron: '*/5 * * * *'
 
   workflow_dispatch:
 
@@ -12,17 +14,31 @@ permissions:
 
   contents: write
 
+concurrency:
+
+  group: update-housho-rates
+
+  cancel-in-progress: false
+
 jobs:
 
   update-rates:
 
     runs-on: ubuntu-latest
 
+    timeout-minutes: 5
+
     steps:
 
       - name: Checkout repository
 
         uses: actions/checkout@v4
+
+        with:
+
+          ref: main
+
+          persist-credentials: true
 
       - name: Set up Python
 
@@ -42,13 +58,55 @@ jobs:
 
       - name: Fetch Housho rates
 
-        run: python fetch_rates.py
+        run: |
+
+          python fetch_rates.py
+
+      - name: Validate downloaded rates
+
+        run: |
+
+          python - <<'PY'
+
+          import json
+
+          from pathlib import Path
+
+          path = Path("rates.json")
+
+          data = json.loads(path.read_text(encoding="utf-8"))
+
+          assert data.get("published_at"), "Publication date missing"
+
+          assert data.get("checked_at"), "Check date missing"
+
+          rates = data.get("rates")
+
+          assert isinstance(rates, dict), "Rates missing"
+
+          assert len(rates) == 37, "Expected 37 grades"
+
+          for grade, price in rates.items():
+
+              assert isinstance(price, int), f"Invalid price: {grade}"
+
+              assert 1 <= price <= 100000, f"Out-of-range price: {grade}"
+
+          print("Validated 37 grades")
+
+          print("Published:", data["published_at"])
+
+          print("Checked:", data["checked_at"])
+
+          PY
 
       - name: Commit updated rates
 
         shell: bash
 
         run: |
+
+          set -euo pipefail
 
           git config user.name "github-actions[bot]"
 
@@ -60,10 +118,28 @@ jobs:
 
             echo "No rate changes"
 
-          else
-
-            git commit -m "Update Housho rates"
-
-            git push
+            exit 0
 
           fi
+
+          git commit -m "Update Housho rates"
+
+          for attempt in 1 2 3; do
+
+            if git push origin HEAD:main; then
+
+              echo "Rates pushed successfully"
+
+              exit 0
+
+            fi
+
+            echo "Push attempt $attempt failed"
+
+            sleep 5
+
+          done
+
+          echo "Failed to push rates"
+
+          exit 1

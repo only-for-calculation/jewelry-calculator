@@ -1,10 +1,10 @@
 
 
-"""Fetch and validate Housho's published 37-grade table.
+"""Fetch Housho's displayed 37-grade metal rates.
 
-Use only where automated access is permitted by the site operator.
+Use only where automated access is permitted.
 
-Never overwrite valid saved rates with incomplete or older data.
+Preserve the existing rates.json format.
 
 """
 
@@ -15,10 +15,6 @@ import json
 import pathlib
 
 import re
-
-import time
-
-import urllib.error
 
 import urllib.parse
 
@@ -128,7 +124,11 @@ def grade(label):
 
     if x.startswith("PT"):
 
-        m = re.match(r"PT(1000|950|900|850)", x)
+        m = re.match(
+
+            r"PT(1000|950|900|850)", x
+
+        )
 
         if m:
 
@@ -148,7 +148,9 @@ def grade(label):
 
         m = re.fullmatch(
 
-            r"SV(1000|925)(?:（純銀）)?", x
+            r"SV(1000|925)(?:（純銀）)?",
+
+            x
 
         )
 
@@ -208,47 +210,23 @@ def publication(text):
 
     return value, m.group()
 
-def make_urls():
+def fetch_html():
 
-    stamp = dt.datetime.now(JST).strftime(
+    now = dt.datetime.now(JST)
 
-        "%Y%m%d%H%M%S%f"
+    query = urllib.parse.urlencode({
 
-    )
+        "_rate_check": now.strftime(
 
-    return [
+            "%Y%m%d%H%M%S%f"
 
-        (
+        )
 
-            "https://www.housho-diamond.co.jp/"
+    })
 
-            f"?_rate_check={stamp}"
+    url = URL + "?" + query
 
-        ),
-
-        (
-
-            "https://housho-diamond.co.jp/"
-
-            f"?_rate_check={stamp}1"
-
-        ),
-
-        (
-
-            "https://www.housho-diamond.co.jp/"
-
-            f"?_rate_check={stamp}2"
-
-            "&_nocache=1"
-
-        ),
-
-    ]
-
-def download(url):
-
-    request = urllib.request.Request(
+    req = urllib.request.Request(
 
         url,
 
@@ -274,17 +252,15 @@ def download(url):
 
             "Accept-Language": "ja-JP,ja;q=0.9",
 
-        },
+        }
 
     )
 
     with urllib.request.urlopen(
 
-        request, timeout=30
+        req, timeout=30
 
     ) as response:
-
-        html = response.read(3_000_000)
 
         print(
 
@@ -292,19 +268,59 @@ def download(url):
 
             response.status,
 
+            flush=True
+
+        )
+
+        print(
+
             "Final URL:",
 
             response.geturl(),
 
-            flush=True,
+            flush=True
 
         )
 
-    return html
+        print(
 
-def parse_rates(html):
+            "Response Date:",
 
-    soup = BeautifulSoup(html, "html.parser")
+            response.headers.get("Date"),
+
+            flush=True
+
+        )
+
+        print(
+
+            "Response Age:",
+
+            response.headers.get("Age"),
+
+            flush=True
+
+        )
+
+        print(
+
+            "Cache Status:",
+
+            response.headers.get("X-Cache"),
+
+            flush=True
+
+        )
+
+        return response.read(3_000_000)
+
+def parse_html(html):
+
+    soup = BeautifulSoup(
+
+        html, "html.parser"
+
+    )
 
     for tag in soup([
 
@@ -314,29 +330,31 @@ def parse_rates(html):
 
         tag.decompose()
 
-    content = soup.get_text("\n", strip=True)
+    content = soup.get_text(
 
-    start = content.find("本日の地金買取価格")
-
-    if start < 0:
-
-        raise ValueError(
-
-            "Price table heading not found"
-
-        )
-
-    end = content.find(
-
-        "ご利用上の注意点", start
+        "\n", strip=True
 
     )
 
-    if end < 0:
+    start = content.find(
+
+        "本日の地金買取価格"
+
+    )
+
+    end = content.find(
+
+        "ご利用上の注意点",
+
+        start
+
+    )
+
+    if start < 0 or end < 0:
 
         raise ValueError(
 
-            "Price table ending not found"
+            "Price table boundaries missing"
 
         )
 
@@ -374,7 +392,9 @@ def parse_rates(html):
 
         match = re.fullmatch(
 
-            r"([\d,]+)円", next_line
+            r"([\d,]+)円",
+
+            next_line
 
         )
 
@@ -392,7 +412,7 @@ def parse_rates(html):
 
             raise ValueError(
 
-                f"Invalid price: {key}={value}"
+                f"Invalid price: {key}"
 
             )
 
@@ -418,275 +438,159 @@ def parse_rates(html):
 
         )
 
-    return {
-
-        "published_dt": published_dt,
-
-        "published_at": published_text,
-
-        "rates": prices,
-
-    }
-
-def load_previous():
-
-    if not OUT.exists():
-
-        return None, None
-
-    previous = json.loads(
-
-        OUT.read_text(encoding="utf-8")
-
-    )
-
-    try:
-
-        old_dt, _ = publication(
-
-            previous.get("published_at", "")
-
-        )
-
-    except ValueError:
-
-        old_dt = None
-
-    return previous, old_dt
-
-def check_freshness(published_dt):
-
-    now = dt.datetime.now(JST)
-
-    age = now - published_dt
-
-    # During weekday business hours, flag a
-
-    # publication older than 20 hours.
-
-    # Public holidays may require manual review.
-
-    if (
-
-        now.weekday() < 5
-
-        and now.hour >= 10
-
-        and age > dt.timedelta(hours=20)
-
-    ):
-
-        raise ValueError(
-
-            "Official rate publication appears stale: "
-
-            f"{published_dt.isoformat()} "
-
-            f"(age: {age})"
-
-        )
+    return published_dt, published_text, prices
 
 def main():
 
     now = dt.datetime.now(JST)
 
-    previous, old_dt = load_previous()
+    print(
+
+        "Checking Housho official rates",
+
+        flush=True
+
+    )
 
     print(
 
-        "Rate check started:",
+        "Checked at:",
 
         now.isoformat(timespec="seconds"),
 
-        flush=True,
+        flush=True
 
     )
 
-    candidates = []
+    html = fetch_html()
 
-    errors = []
+    published_dt, published_text, prices = (
 
-    for index, url in enumerate(
-
-        make_urls(), start=1
-
-    ):
-
-        print(
-
-            f"Checking source {index}/3",
-
-            flush=True,
-
-        )
-
-        try:
-
-            html = download(url)
-
-            result = parse_rates(html)
-
-            print(
-
-                "Publication:",
-
-                result["published_at"],
-
-                flush=True,
-
-            )
-
-            print(
-
-                "K18:",
-
-                result["rates"]["K18"],
-
-                "Pt900:",
-
-                result["rates"]["Pt900"],
-
-                flush=True,
-
-            )
-
-            print(
-
-                "Validated grades:",
-
-                len(result["rates"]),
-
-                flush=True,
-
-            )
-
-            candidates.append(result)
-
-        except Exception as exc:
-
-            message = (
-
-                f"Source {index} failed: "
-
-                f"{type(exc).__name__}: {exc}"
-
-            )
-
-            errors.append(message)
-
-            print(message, flush=True)
-
-        if index < 3:
-
-            time.sleep(2)
-
-    if not candidates:
-
-        raise RuntimeError(
-
-            "All official source checks failed.\n"
-
-            + "\n".join(errors)
-
-        )
-
-    latest_dt = max(
-
-        item["published_dt"]
-
-        for item in candidates
+        parse_html(html)
 
     )
-
-    latest = [
-
-        item for item in candidates
-
-        if item["published_dt"] == latest_dt
-
-    ]
-
-    # If equally dated sources disagree,
-
-    # do not choose prices arbitrarily.
-
-    first_rates = latest[0]["rates"]
-
-    for item in latest[1:]:
-
-        if item["rates"] != first_rates:
-
-            raise ValueError(
-
-                "Official sources disagree on prices "
-
-                "for the same publication timestamp"
-
-            )
-
-    selected = latest[0]
 
     print(
 
-        "Selected publication:",
+        "Official publication:",
 
-        selected["published_at"],
+        published_text,
 
-        flush=True,
+        flush=True
 
     )
 
-    check_freshness(selected["published_dt"])
+    print(
 
-    if old_dt and selected["published_dt"] < old_dt:
+        "K18:",
 
-        raise ValueError(
+        prices["K18"],
 
-            "Stale upstream response: "
+        flush=True
 
-            f"{selected['published_at']} "
+    )
 
-            f"< {previous['published_at']}"
+    print(
+
+        "Pt900:",
+
+        prices["Pt900"],
+
+        flush=True
+
+    )
+
+    print(
+
+        "Validated grades:",
+
+        len(prices),
+
+        flush=True
+
+    )
+
+    previous = {}
+
+    if OUT.exists():
+
+        previous = json.loads(
+
+            OUT.read_text(encoding="utf-8")
 
         )
 
-    if (
+    old_published = previous.get(
 
-        old_dt
+        "published_at", ""
 
-        and selected["published_dt"] == old_dt
+    )
 
-    ):
+    old_rates = previous.get(
 
-        if previous.get("rates") != first_rates:
+        "rates", {}
 
-            raise ValueError(
+    )
 
-                "Prices changed without a new "
+    same_date = (
 
-                "publication timestamp. "
+        old_published == published_text
 
-                "Manual review required."
+    )
 
-            )
+    same_prices = (
+
+        old_rates == prices
+
+    )
+
+    if same_date and same_prices:
 
         print(
 
-            "No new official publication:",
+            "No changes in displayed rates.",
 
-            selected["published_at"],
+            flush=True
 
-            flush=True,
+        )
+
+        print(
+
+            "Existing rates.json retained.",
+
+            flush=True
 
         )
 
         return
 
+    if same_prices:
+
+        print(
+
+            "Prices unchanged; "
+
+            "publication timestamp changed.",
+
+            flush=True
+
+        )
+
+    else:
+
+        print(
+
+            "Displayed prices changed.",
+
+            flush=True
+
+        )
+
     payload = {
 
         "source": URL,
 
-        "published_at": selected["published_at"],
+        "published_at": published_text,
 
         "checked_at": now.isoformat(
 
@@ -696,11 +600,11 @@ def main():
 
         "rates": {
 
-            key: first_rates[key]
+            key: prices[key]
 
             for key in KEYS
 
-        },
+        }
 
     }
 
@@ -712,11 +616,11 @@ def main():
 
             ensure_ascii=False,
 
-            indent=2,
+            indent=2
 
         ) + "\n",
 
-        encoding="utf-8",
+        encoding="utf-8"
 
     )
 
@@ -724,19 +628,31 @@ def main():
 
         "Saved 37 grades.",
 
+        flush=True
+
+    )
+
+    print(
+
         "Published:",
 
-        selected["published_at"],
+        published_text,
+
+        flush=True
+
+    )
+
+    print(
 
         "K18:",
 
-        first_rates["K18"],
+        prices["K18"],
 
         "Pt900:",
 
-        first_rates["Pt900"],
+        prices["Pt900"],
 
-        flush=True,
+        flush=True
 
     )
 

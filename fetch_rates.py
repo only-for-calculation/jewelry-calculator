@@ -1,10 +1,10 @@
 
 
-"""Fetch Housho's displayed 37-grade metal rates.
+"""Fetch and validate Housho's displayed 37 metal rates.
 
-Use only where automated access is permitted.
+Preserves the rates.json schema.
 
-Preserve the existing rates.json format.
+Does not overwrite newer data with older data.
 
 """
 
@@ -106,29 +106,17 @@ def grade(label):
 
         m = re.search(
 
-            r"PT(900|850).*?（([1-9]):([1-9])）",
-
-            x
+            r"PT(900|850).*?（([1-9]):([1-9])）", x
 
         )
 
         if m and int(m[2]) + int(m[3]) == 10:
 
-            return (
-
-                f"K18/Pt{m[1]}"
-
-                f"（{m[2]}:{m[3]}）"
-
-            )
+            return f"K18/Pt{m[1]}（{m[2]}:{m[3]}）"
 
     if x.startswith("PT"):
 
-        m = re.match(
-
-            r"PT(1000|950|900|850)", x
-
-        )
+        m = re.match(r"PT(1000|950|900|850)", x)
 
         if m:
 
@@ -148,9 +136,7 @@ def grade(label):
 
         m = re.fullmatch(
 
-            r"SV(1000|925)(?:（純銀）)?",
-
-            x
+            r"SV(1000|925)(?:（純銀）)?", x
 
         )
 
@@ -160,9 +146,7 @@ def grade(label):
 
     if re.fullmatch(
 
-        r"K(?:24|22|21\.6|20|18|14|10|9)",
-
-        x
+        r"K(?:24|22|21\.6|20|18|14|10|9)", x
 
     ):
 
@@ -186,15 +170,13 @@ def publication(text):
 
     if not m:
 
-        raise ValueError(
+        raise ValueError("Publication timestamp not found")
 
-            "Publication timestamp not found"
+    value = dt.datetime(
 
-        )
+        *map(int, m.groups()), tzinfo=JST
 
-    parts = [int(v) for v in m.groups()]
-
-    value = dt.datetime(*parts, tzinfo=JST)
+    )
 
     if value > dt.datetime.now(JST) + dt.timedelta(
 
@@ -202,11 +184,7 @@ def publication(text):
 
     ):
 
-        raise ValueError(
-
-            "Publication timestamp is in the future"
-
-        )
+        raise ValueError("Future publication timestamp")
 
     return value, m.group()
 
@@ -216,19 +194,13 @@ def fetch_html():
 
     query = urllib.parse.urlencode({
 
-        "_rate_check": now.strftime(
-
-            "%Y%m%d%H%M%S%f"
-
-        )
+        "_rate_check": now.strftime("%Y%m%d%H%M%S%f")
 
     })
 
-    url = URL + "?" + query
-
     req = urllib.request.Request(
 
-        url,
+        URL + "?" + query,
 
         headers={
 
@@ -240,11 +212,7 @@ def fetch_html():
 
             ),
 
-            "Cache-Control": (
-
-                "no-cache, no-store, max-age=0"
-
-            ),
+            "Cache-Control": "no-cache, no-store, max-age=0",
 
             "Pragma": "no-cache",
 
@@ -252,119 +220,55 @@ def fetch_html():
 
             "Accept-Language": "ja-JP,ja;q=0.9",
 
-        }
+        },
 
     )
 
-    with urllib.request.urlopen(
+    with urllib.request.urlopen(req, timeout=30) as response:
 
-        req, timeout=30
+        print("HTTP status:", response.status, flush=True)
 
-    ) as response:
+        print("Final URL:", response.geturl(), flush=True)
 
-        print(
+        for name in (
 
-            "HTTP status:",
+            "Date", "Age", "X-Cache", "CF-Cache-Status",
 
-            response.status,
+            "Cache-Control", "Last-Modified"
 
-            flush=True
+        ):
 
-        )
+            print(
 
-        print(
+                name + ":", response.headers.get(name),
 
-            "Final URL:",
+                flush=True
 
-            response.geturl(),
-
-            flush=True
-
-        )
-
-        print(
-
-            "Response Date:",
-
-            response.headers.get("Date"),
-
-            flush=True
-
-        )
-
-        print(
-
-            "Response Age:",
-
-            response.headers.get("Age"),
-
-            flush=True
-
-        )
-
-        print(
-
-            "Cache Status:",
-
-            response.headers.get("X-Cache"),
-
-            flush=True
-
-        )
+            )
 
         return response.read(3_000_000)
 
 def parse_html(html):
 
-    soup = BeautifulSoup(
+    soup = BeautifulSoup(html, "html.parser")
 
-        html, "html.parser"
-
-    )
-
-    for tag in soup([
-
-        "script", "style", "noscript"
-
-    ]):
+    for tag in soup(["script", "style", "noscript"]):
 
         tag.decompose()
 
-    content = soup.get_text(
+    content = soup.get_text("\n", strip=True)
 
-        "\n", strip=True
+    start = content.find("本日の地金買取価格")
 
-    )
-
-    start = content.find(
-
-        "本日の地金買取価格"
-
-    )
-
-    end = content.find(
-
-        "ご利用上の注意点",
-
-        start
-
-    )
+    end = content.find("ご利用上の注意点", start)
 
     if start < 0 or end < 0:
 
-        raise ValueError(
-
-            "Price table boundaries missing"
-
-        )
+        raise ValueError("Price table boundaries missing")
 
     section = content[start:end]
 
-    published_dt, published_text = publication(
-
-        section
-
-    )
+    published_dt, published_text = publication(section)
 
     rows = [
 
@@ -378,11 +282,7 @@ def parse_html(html):
 
     prices = {}
 
-    for label, next_line in zip(
-
-        rows, rows[1:]
-
-    ):
+    for label, next_line in zip(rows, rows[1:]):
 
         key = grade(label)
 
@@ -390,39 +290,21 @@ def parse_html(html):
 
             continue
 
-        match = re.fullmatch(
-
-            r"([\d,]+)円",
-
-            next_line
-
-        )
+        match = re.fullmatch(r"([\d,]+)円", next_line)
 
         if not match:
 
             continue
 
-        value = int(
-
-            match[1].replace(",", "")
-
-        )
+        value = int(match[1].replace(",", ""))
 
         if not 1 <= value <= 100000:
 
-            raise ValueError(
-
-                f"Invalid price: {key}"
-
-            )
+            raise ValueError(f"Invalid price: {key}")
 
         if key in prices:
 
-            raise ValueError(
-
-                f"Duplicate grade: {key}"
-
-            )
+            raise ValueError(f"Duplicate grade: {key}")
 
         prices[key] = value
 
@@ -444,71 +326,23 @@ def main():
 
     now = dt.datetime.now(JST)
 
-    print(
+    print("Checking Housho official rates", flush=True)
 
-        "Checking Housho official rates",
-
-        flush=True
-
-    )
-
-    print(
-
-        "Checked at:",
-
-        now.isoformat(timespec="seconds"),
-
-        flush=True
-
-    )
+    print("Checked at:", now.isoformat(), flush=True)
 
     html = fetch_html()
 
-    published_dt, published_text, prices = (
+    new_dt, published, prices = parse_html(html)
 
-        parse_html(html)
+    print("Official publication:", published, flush=True)
 
-    )
+    print("Validated grades:", len(prices), flush=True)
 
-    print(
+    print("K22:", prices["K22"], flush=True)
 
-        "Official publication:",
+    print("K18:", prices["K18"], flush=True)
 
-        published_text,
-
-        flush=True
-
-    )
-
-    print(
-
-        "K18:",
-
-        prices["K18"],
-
-        flush=True
-
-    )
-
-    print(
-
-        "Pt900:",
-
-        prices["Pt900"],
-
-        flush=True
-
-    )
-
-    print(
-
-        "Validated grades:",
-
-        len(prices),
-
-        flush=True
-
-    )
+    print("Pt900:", prices["Pt900"], flush=True)
 
     previous = {}
 
@@ -520,41 +354,41 @@ def main():
 
         )
 
-    old_published = previous.get(
+    old_text = previous.get("published_at", "")
 
-        "published_at", ""
+    old_rates = previous.get("rates", {})
+
+    if old_text:
+
+        old_dt, _ = publication(old_text)
+
+        if new_dt < old_dt:
+
+            raise RuntimeError(
+
+                "STALE SOURCE: fetched publication "
+
+                f"{published} is older than saved {old_text}"
+
+            )
+
+    age = now - new_dt
+
+    print(
+
+        "Publication age (minutes):",
+
+        round(age.total_seconds() / 60, 1),
+
+        flush=True
 
     )
 
-    old_rates = previous.get(
-
-        "rates", {}
-
-    )
-
-    same_date = (
-
-        old_published == published_text
-
-    )
-
-    same_prices = (
-
-        old_rates == prices
-
-    )
-
-    if same_date and same_prices:
+    if old_text == published and old_rates == prices:
 
         print(
 
-            "No changes in displayed rates.",
-
-            flush=True
-
-        )
-
-        print(
+            "No changes in displayed rates. "
 
             "Existing rates.json retained.",
 
@@ -564,23 +398,13 @@ def main():
 
         return
 
-    if same_prices:
+    if old_text == published and old_rates != prices:
 
         print(
 
-            "Prices unchanged; "
+            "WARNING: Prices changed without "
 
-            "publication timestamp changed.",
-
-            flush=True
-
-        )
-
-    else:
-
-        print(
-
-            "Displayed prices changed.",
+            "publication timestamp change.",
 
             flush=True
 
@@ -590,13 +414,9 @@ def main():
 
         "source": URL,
 
-        "published_at": published_text,
+        "published_at": published,
 
-        "checked_at": now.isoformat(
-
-            timespec="seconds"
-
-        ),
+        "checked_at": now.isoformat(timespec="seconds"),
 
         "rates": {
 
@@ -604,7 +424,7 @@ def main():
 
             for key in KEYS
 
-        }
+        },
 
     }
 
@@ -612,11 +432,7 @@ def main():
 
         json.dumps(
 
-            payload,
-
-            ensure_ascii=False,
-
-            indent=2
+            payload, ensure_ascii=False, indent=2
 
         ) + "\n",
 
@@ -624,37 +440,9 @@ def main():
 
     )
 
-    print(
+    print("Saved 37 grades.", flush=True)
 
-        "Saved 37 grades.",
-
-        flush=True
-
-    )
-
-    print(
-
-        "Published:",
-
-        published_text,
-
-        flush=True
-
-    )
-
-    print(
-
-        "K18:",
-
-        prices["K18"],
-
-        "Pt900:",
-
-        prices["Pt900"],
-
-        flush=True
-
-    )
+    print("Published:", published, flush=True)
 
 if __name__ == "__main__":
 

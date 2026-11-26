@@ -206,7 +206,7 @@ a{color:#26698a}
 
 <button class="btn" id="copy">計算結果をコピー</button>
 
-<button class="btn" id="copyDetails">計算結果明細をコピー</button>
+<button class="btn" id="copyDetails">計算結果を画像でコピー</button>
 
 <button class="btn outline" id="clear">入力内容をクリア</button>
 
@@ -570,7 +570,7 @@ $('copy').addEventListener('click',async()=>{
 
 });
 
-// 新機能：計算結果明細をコピー
+// 新機能：計算結果を画像でコピー
 
 $('copyDetails').addEventListener('click',async()=>{
 
@@ -582,39 +582,155 @@ $('copyDetails').addEventListener('click',async()=>{
 
  }
 
- const total=copyValue;
-
- const metal=$('metal').textContent
-
-  .replace(/\s+/g,'');
-
- const gem=$('gem').textContent
-
-  .replace(/\s+/g,'');
-
- const details=[
-
-  '概算買取金額：'+total,
-
-  '地金代：'+metal,
-
-  '宝石代：'+gem
-
- ].join('\n');
-
  try{
 
-  await navigator.clipboard.writeText(details);
+  const card=document.querySelector('.result');
+
+  const base=card.getBoundingClientRect();
+
+  const width=base.width;
+
+  const height=base.height;
+
+  const scale=3;
+
+  const canvas=document.createElement('canvas');
+
+  canvas.width=Math.ceil(width*scale);
+
+  canvas.height=Math.ceil(height*scale);
+
+  const ctx=canvas.getContext('2d');
+
+  ctx.scale(scale,scale);
+
+  ctx.fillStyle=getComputedStyle(card).backgroundColor;
+
+  ctx.beginPath();
+
+  ctx.roundRect(0,0,width,height,17);
+
+  ctx.fill();
+
+  const elements=card.querySelectorAll(
+
+   'small,strong,.row span'
+
+  );
+
+  elements.forEach(el=>{
+
+   const style=getComputedStyle(el);
+
+   ctx.fillStyle=style.color;
+
+   ctx.font=style.fontWeight+' '+
+
+    style.fontSize+' '+style.fontFamily;
+
+   ctx.textBaseline='middle';
+
+   const walker=document.createTreeWalker(
+
+    el,NodeFilter.SHOW_TEXT
+
+   );
+
+   let node;
+
+   while((node=walker.nextNode())){
+
+    const range=document.createRange();
+
+    const lines=[];
+
+    for(let i=0;i<node.length;i++){
+
+     range.setStart(node,i);
+
+     range.setEnd(node,i+1);
+
+     const rect=range.getBoundingClientRect();
+
+     const last=lines[lines.length-1];
+
+     if(last&&Math.abs(last.top-rect.top)<1){
+
+      last.text+=node.textContent[i];
+
+     }else{
+
+      lines.push({
+
+       text:node.textContent[i],
+
+       left:rect.left,
+
+       top:rect.top,
+
+       height:rect.height
+
+      });
+
+     }
+
+    }
+
+    lines.forEach(line=>{
+
+     ctx.fillText(
+
+      line.text,
+
+      line.left-base.left,
+
+      line.top-base.top+line.height/2
+
+     );
+
+    });
+
+   }
+
+  });
+
+  const png=new Promise((resolve,reject)=>{
+
+   canvas.toBlob(blob=>{
+
+    if(blob){
+
+     resolve(blob);
+
+    }else{
+
+     reject(new Error('画像生成失敗'));
+
+    }
+
+   },'image/png');
+
+  });
+
+  await navigator.clipboard.write([
+
+   new ClipboardItem({
+
+    'image/png':png
+
+   })
+
+  ]);
 
   $('status').textContent=
 
-  '計算結果明細をコピーしました';
+  '計算結果を画像でコピーしました';
 
  }catch(e){
 
   $('status').textContent=
 
-  'この環境ではコピーできません';
+  'この環境では画像をコピーできません';
 
  }
 

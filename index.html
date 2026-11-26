@@ -206,7 +206,7 @@ a{color:#26698a}
 
 <button class="btn" id="copy">計算結果をコピー</button>
 
-<button class="btn" id="copyDetails">計算結果を画像でコピー</button>
+<button class="btn" id="copyDetails">計算結果を画像で共有</button>
 
 <button class="btn outline" id="clear">入力内容をクリア</button>
 
@@ -570,7 +570,7 @@ $('copy').addEventListener('click',async()=>{
 
 });
 
-// 新機能：計算結果を画像でコピー
+// 新機能：計算結果を画像で共有
 
 $('copyDetails').addEventListener('click',async()=>{
 
@@ -608,7 +608,15 @@ $('copyDetails').addEventListener('click',async()=>{
 
   ctx.beginPath();
 
-  ctx.roundRect(0,0,width,height,17);
+  if(typeof ctx.roundRect==='function'){
+
+   ctx.roundRect(0,0,width,height,17);
+
+  }else{
+
+   ctx.rect(0,0,width,height);
+
+  }
 
   ctx.fill();
 
@@ -694,43 +702,97 @@ $('copyDetails').addEventListener('click',async()=>{
 
   });
 
-  const png=new Promise((resolve,reject)=>{
+  // PNG画像を同期的に生成
 
-   canvas.toBlob(blob=>{
+  const dataURL=canvas.toDataURL('image/png');
 
-    if(blob){
+  const binary=atob(dataURL.split(',')[1]);
 
-     resolve(blob);
+  const bytes=new Uint8Array(binary.length);
 
-    }else{
+  for(let i=0;i<binary.length;i++){
 
-     reject(new Error('画像生成失敗'));
+   bytes[i]=binary.charCodeAt(i);
+
+  }
+
+  const file=new File(
+
+   [bytes],
+
+   '計算結果.png',
+
+   {type:'image/png'}
+
+  );
+
+  const shareData={files:[file]};
+
+  // iPhone・Androidの共有画面を開く
+
+  if(
+
+   typeof navigator.share==='function'&&
+
+   typeof navigator.canShare==='function'&&
+
+   navigator.canShare(shareData)
+
+  ){
+
+   try{
+
+    await navigator.share(shareData);
+
+    $('status').textContent=
+
+    '画像共有の操作が完了しました';
+
+    return;
+
+   }catch(e){
+
+    if(e.name==='AbortError'){
+
+     $('status').textContent=
+
+     '画像共有をキャンセルしました';
+
+     return;
 
     }
 
-   },'image/png');
+   }
 
-  });
+  }
 
-  await navigator.clipboard.write([
+  // 画像共有に対応していない場合は画像保存
 
-   new ClipboardItem({
+  const url=URL.createObjectURL(file);
 
-    'image/png':png
+  const link=document.createElement('a');
 
-   })
+  link.href=url;
 
-  ]);
+  link.download='計算結果.png';
+
+  document.body.appendChild(link);
+
+  link.click();
+
+  link.remove();
+
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
 
   $('status').textContent=
 
-  '計算結果を画像でコピーしました';
+  '画像共有に対応していないため、画像の保存を開始しました';
 
  }catch(e){
 
   $('status').textContent=
 
-  'この環境では画像をコピーできません';
+  '画像を共有できませんでした。SafariまたはChromeでお試しください';
 
  }
 

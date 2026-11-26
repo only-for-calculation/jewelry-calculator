@@ -168,11 +168,29 @@ a{color:#26698a}
 
 <strong id="total">—</strong>
 
-<div class="row"><span>地金重量</span><span id="net">—</span></div>
+<div class="row">
 
-<div class="row"><span>地金代</span><span id="metal">—</span></div>
+<span>地金重量</span>
 
-<div class="row"><span>宝石代</span><span id="gem">—</span></div>
+<span id="net">—</span>
+
+</div>
+
+<div class="row">
+
+<span>地金代</span>
+
+<span id="metal">—</span>
+
+</div>
+
+<div class="row">
+
+<span>宝石代</span>
+
+<span id="gem">—</span>
+
+</div>
 
 </div>
 
@@ -188,6 +206,8 @@ a{color:#26698a}
 
 <button class="btn" id="copy">計算結果をコピー</button>
 
+<button class="btn" id="copyDetails">計算結果明細をコピー</button>
+
 <button class="btn outline" id="clear">入力内容をクリア</button>
 
 <p id="status" aria-live="polite"></p>
@@ -202,57 +222,79 @@ a{color:#26698a}
 
 const initial={
 
-'K24':21961,'K22':20084,'K21.6':19651,
+ 'K24':21961,
 
-'K20':18217,'K18':16763,'K14':12564,
+ 'K22':20084,
 
-'K10':8817,'K9':7795,'K18WG':16773,
+ 'K21.6':19651,
 
-'Pt1000':8012,'Pt950':7644,'Pt900':7715,
+ 'K20':18217,
 
-'Pt900（ダイヤ付き）':7865,
+ 'K18':16763,
 
-'Pt850':7308,'Pt850（ダイヤ付き）':7458,
+ 'K14':12564,
 
-'SV1000':259,'SV925':231,
+ 'K10':8817,
 
-'金インゴット':22380,'Pt1000インゴット':8147,
+ 'K9':7795,
 
-'K18/Pt900（9:1）':15698,
+ 'K18WG':16773,
 
-'K18/Pt900（8:2）':14727,
+ 'Pt1000':8012,
 
-'K18/Pt900（7:3）':13784,
+ 'Pt950':7644,
 
-'K18/Pt900（6:4）':12841,
+ 'Pt900':7715,
 
-'K18/Pt900（5:5）':11939,
+ 'Pt900（ダイヤ付き）':7865,
 
-'K18/Pt900（4:6）':10954,
+ 'Pt850':7308,
 
-'K18/Pt900（3:7）':10011,
+ 'Pt850（ダイヤ付き）':7458,
 
-'K18/Pt900（2:8）':9068,
+ 'SV1000':259,
 
-'K18/Pt900（1:9）':8171,
+ 'SV925':231,
 
-'K18/Pt850（9:1）':15687,
+ '金インゴット':22380,
 
-'K18/Pt850（8:2）':14645,
+ 'Pt1000インゴット':8147,
 
-'K18/Pt850（7:3）':13662,
+ 'K18/Pt900（9:1）':15698,
 
-'K18/Pt850（6:4）':12678,
+ 'K18/Pt900（8:2）':14727,
 
-'K18/Pt850（5:5）':11735,
+ 'K18/Pt900（7:3）':13784,
 
-'K18/Pt850（4:6）':10710,
+ 'K18/Pt900（6:4）':12841,
 
-'K18/Pt850（3:7）':9726,
+ 'K18/Pt900（5:5）':11939,
 
-'K18/Pt850（2:8）':8743,
+ 'K18/Pt900（4:6）':10954,
 
-'K18/Pt850（1:9）':7805
+ 'K18/Pt900（3:7）':10011,
+
+ 'K18/Pt900（2:8）':9068,
+
+ 'K18/Pt900（1:9）':8171,
+
+ 'K18/Pt850（9:1）':15687,
+
+ 'K18/Pt850（8:2）':14645,
+
+ 'K18/Pt850（7:3）':13662,
+
+ 'K18/Pt850（6:4）':12678,
+
+ 'K18/Pt850（5:5）':11735,
+
+ 'K18/Pt850（4:6）':10710,
+
+ 'K18/Pt850（3:7）':9726,
+
+ 'K18/Pt850（2:8）':8743,
+
+ 'K18/Pt850（1:9）':7805
 
 };
 
@@ -310,11 +352,15 @@ Object.keys(initial).forEach(k=>{
 
 $('grade').value=
 
-Object.prototype.hasOwnProperty.call(initial,lastGrade)
+ Object.prototype.hasOwnProperty.call(initial,lastGrade)
 
-?lastGrade:'K18';
+ ?lastGrade:'K18';
 
-function rateFor(k){return rates[k]}
+function rateFor(k){
+
+ return rates[k];
+
+}
 
 $('rate').value=rateFor($('grade').value);
 
@@ -334,7 +380,11 @@ showFreshness(sourceState+'：'+published+'。最新かどうかは未確認で�
 
 const val=id=>Number($(id).value||0);
 
-function money(n){return fmt(n)+'円'}
+function money(n){
+
+ return fmt(n)+'円';
+
+}
 
 function displayRange(low,high,hasUpper){
 
@@ -346,7 +396,13 @@ let copyValue='';
 
 function calc(){
 
- const ids=['gross','rate','ct1','price1','price1max','ct2','price2','price2max'];
+ const ids=[
+
+  'gross','rate','ct1','price1','price1max',
+
+  'ct2','price2','price2max'
+
+ ];
 
  const valid=ids.every(id=>
 
@@ -370,7 +426,11 @@ function calc(){
 
   $('total').textContent='入力を確認';
 
-  ['net','metal','gem','gem1','gem2'].forEach(id=>$(id).textContent='—');
+  ['net','metal','gem','gem1','gem2'].forEach(
+
+   id=>$(id).textContent='—'
+
+  );
 
   return;
 
@@ -386,17 +446,29 @@ function calc(){
 
   const low=Math.floor(val('ct'+i)*val('price'+i));
 
-  const upperEntered=$('price'+i+'max').value!=='';
+  const upperEntered=
 
-  const high=upperEntered?Math.floor(val('ct'+i)*val('price'+i+'max')):low;
+   $('price'+i+'max').value!=='';
+
+  const high=upperEntered
+
+   ?Math.floor(val('ct'+i)*val('price'+i+'max'))
+
+   :low;
 
   lows.push(low);
 
   highs.push(high);
 
-  if(upperEntered&&val('ct'+i)>0)anyUpper=true;
+  if(upperEntered&&val('ct'+i)>0){
 
-  $('gem'+i).textContent=displayRange(low,high,upperEntered&&val('ct'+i)>0);
+   anyUpper=true;
+
+  }
+
+  $('gem'+i).textContent=
+
+   displayRange(low,high,upperEntered&&val('ct'+i)>0);
 
  }
 
@@ -410,7 +482,15 @@ function calc(){
 
  $('gem').textContent=displayRange(gemLow,gemHigh,anyUpper);
 
- copyValue=displayRange(metal+gemLow,metal+gemHigh,anyUpper);
+ copyValue=displayRange(
+
+  metal+gemLow,
+
+  metal+gemHigh,
+
+  anyUpper
+
+ );
 
  $('total').textContent=copyValue;
 
@@ -420,7 +500,11 @@ $('grade').addEventListener('change',()=>{
 
  $('rate').value=rateFor($('grade').value);
 
- localStorage.setItem('housho-grade',$('grade').value);
+ localStorage.setItem(
+
+  'housho-grade',$('grade').value
+
+ );
 
  calc();
 
@@ -430,13 +514,19 @@ $('rate').addEventListener('input',()=>{
 
  calc();
 
- $('status').textContent='手動入力中です。次の自動取得成功時に公表単価へ戻ります。';
+ $('status').textContent=
+
+ '手動入力中です。次の自動取得成功時に公表単価へ戻ります。';
 
 });
 
-['gross','ct1','price1','price1max','ct2','price2','price2max']
+[
 
-.forEach(id=>$(id).addEventListener('input',calc));
+ 'gross','ct1','price1','price1max',
+
+ 'ct2','price2','price2max'
+
+].forEach(id=>$(id).addEventListener('input',calc));
 
 $('reset').addEventListener('click',()=>{
 
@@ -444,9 +534,13 @@ $('reset').addEventListener('click',()=>{
 
  calc();
 
- $('status').textContent='取得済みの基準単価に戻しました';
+ $('status').textContent=
+
+ '取得済みの基準単価に戻しました';
 
 });
+
+// 従来の計算結果コピー
 
 $('copy').addEventListener('click',async()=>{
 
@@ -462,25 +556,87 @@ $('copy').addEventListener('click',async()=>{
 
   await navigator.clipboard.writeText(copyValue);
 
-  $('status').textContent='概算買取額をコピーしました';
+  $('status').textContent=
+
+  '概算買取額をコピーしました';
 
  }catch(e){
 
-  $('status').textContent='この環境ではコピーできません';
+  $('status').textContent=
+
+  'この環境ではコピーできません';
 
  }
 
 });
 
+// 新機能：計算結果明細をコピー
+
+$('copyDetails').addEventListener('click',async()=>{
+
+ if(!copyValue){
+
+  $('status').textContent='入力内容を確認してください';
+
+  return;
+
+ }
+
+ const total=copyValue;
+
+ const metal=$('metal').textContent
+
+  .replace(/\s+/g,'');
+
+ const gem=$('gem').textContent
+
+  .replace(/\s+/g,'');
+
+ const details=[
+
+  '概算買取金額：'+total,
+
+  '地金代：'+metal,
+
+  '宝石代：'+gem
+
+ ].join('\n');
+
+ try{
+
+  await navigator.clipboard.writeText(details);
+
+  $('status').textContent=
+
+  '計算結果明細をコピーしました';
+
+ }catch(e){
+
+  $('status').textContent=
+
+  'この環境ではコピーできません';
+
+ }
+
+});
+
+// 入力内容の一括クリア
+
 $('clear').addEventListener('click',()=>{
 
- ['gross','ct1','price1','price1max','ct2','price2','price2max']
+ [
 
- .forEach(id=>$(id).value='');
+  'gross','ct1','price1','price1max',
+
+  'ct2','price2','price2max'
+
+ ].forEach(id=>$(id).value='');
 
  calc();
 
- $('status').textContent='入力内容をクリアしました';
+ $('status').textContent=
+
+ '入力内容をクリアしました';
 
 });
 
@@ -500,17 +656,31 @@ async function updateRates(){
 
  try{
 
-  const response=await fetch('./rates.json?t='+Date.now(),{cache:'no-store'});
+  const response=await fetch(
 
-  if(!response.ok)throw new Error('HTTP '+response.status);
+   './rates.json?t='+Date.now(),
+
+   {cache:'no-store'}
+
+  );
+
+  if(!response.ok){
+
+   throw new Error('HTTP '+response.status);
+
+  }
 
   const data=await response.json();
 
-  if(!validRates(data.rates)||
+  if(
 
-     typeof data.published_at!=='string'||
+   !validRates(data.rates)||
 
-     !data.published_at.trim()){
+   typeof data.published_at!=='string'||
+
+   !data.published_at.trim()
+
+  ){
 
    throw new Error('データ形式が不正です');
 
@@ -528,11 +698,19 @@ async function updateRates(){
 
   try{
 
-   localStorage.setItem(STORE,JSON.stringify({
+   localStorage.setItem(
 
-    rates,published_at:published
+    STORE,
 
-   }));
+    JSON.stringify({
+
+     rates,
+
+     published_at:published
+
+    })
+
+   );
 
   }catch(e){}
 
@@ -550,7 +728,9 @@ async function updateRates(){
 
   );
 
-  $('status').textContent='相場の確認が完了しました。';
+  $('status').textContent=
+
+  '相場の確認が完了しました。';
 
  }catch(e){
 
@@ -560,11 +740,15 @@ async function updateRates(){
 
    '最新相場を確認できませんでした。表示中の単価は'+
 
-   published+'の参考値です。公式サイトで確認してください。'
+   published+
+
+   'の参考値です。公式サイトで確認してください。'
 
   );
 
-  $('status').textContent='相場取得エラー：'+e.message;
+  $('status').textContent=
+
+  '相場取得エラー：'+e.message;
 
  }finally{
 

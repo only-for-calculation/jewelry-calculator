@@ -640,15 +640,11 @@ $('copyDetails').addEventListener('click',async()=>{
 
    ctx.textBaseline='middle';
 
-   const walker=document.createTreeWalker(
-
-    el,NodeFilter.SHOW_TEXT
-
-   );
-
-   let node;
-
-   while((node=walker.nextNode())){
+   const textNodes=[];
+   el.childNodes.forEach(child=>{
+    if(child.nodeType===3) textNodes.push(child);
+   });
+   for(const node of textNodes){
 
     const range=document.createRange();
 
@@ -704,6 +700,18 @@ $('copyDetails').addEventListener('click',async()=>{
 
   });
 
+const smallEl=card.querySelector('small');
+  if(smallEl&&typeof published==='string'&&published){
+   const sStyle=getComputedStyle(smallEl);
+   ctx.fillStyle=sStyle.color;
+   ctx.font=sStyle.fontWeight+' '+sStyle.fontSize+' '+sStyle.fontFamily;
+   ctx.textBaseline='middle';
+   ctx.textAlign='right';
+   const sRect=smallEl.getBoundingClientRect();
+   const dateText='査定日 '+published.split(' ')[0].replace('(','（').replace(')','）');
+   ctx.fillText(dateText,width-20,sRect.top-base.top+sRect.height/2);
+   ctx.textAlign='left';
+  }
   // PNG画像を同期的に生成
 
   const dataURL=canvas.toDataURL('image/png');

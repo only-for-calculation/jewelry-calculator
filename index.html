@@ -818,7 +818,43 @@ $('clear').addEventListener('click',()=>{
 
 });
 
-$('refresh').addEventListener('click',()=>updateRates());
+async function fetchPublishedAt(){
+  try{
+    const r = await fetch('./rates.json?t='+Date.now(), {cache:'no-store'});
+    if(!r.ok) return null;
+    const j = await r.json();
+    return j.published_at || null;
+  }catch(e){ return null; }
+}
+let refreshing = false;
+async function refreshFromSource(){
+  if(refreshing) return;
+  refreshing = true;
+  const btn = $('refresh');
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '更新中…';
+  const before = await fetchPublishedAt();
+  try{
+    const res = await fetch('https://rates-relay.r-hagio19990415.workers.dev', {method:'POST'});
+    if(!res.ok) throw new Error('relay ' + res.status);
+  }catch(e){
+    btn.textContent = '更新を開始できませんでした';
+    setTimeout(()=>{ btn.textContent = orig; btn.disabled = false; refreshing = false; }, 3000);
+    return;
+  }
+  const deadline = Date.now() + 180000;
+  let changed = false;
+  while(Date.now() < deadline){
+    await new Promise(r=>setTimeout(r, 10000));
+    const nowAt = await fetchPublishedAt();
+    if(nowAt && nowAt !== before){ changed = true; break; }
+  }
+  await updateRates();
+  btn.textContent = changed ? '更新しました' : '最新の状態です';
+  setTimeout(()=>{ btn.textContent = orig; btn.disabled = false; refreshing = false; }, 3000);
+}
+$('refresh').addEventListener('click', refreshFromSource);
 
 let fetching=false;
 
@@ -855,7 +891,6 @@ async function updateRates(){
    !validRates(data.rates)||
 
    typeof data.published_at!=='string'||
-
    !data.published_at.trim()
 
   ){

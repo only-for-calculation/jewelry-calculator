@@ -43,6 +43,7 @@ input,select{width:100%;border:1px solid #cbd4d9;border-radius:11px;padding:13px
 .result small{color:#c2d2db}
 
 .row{display:flex;justify-content:space-between;gap:12px;padding:7px 0;font-size:14px}
+ .grade-badge{background:#b18c4e;color:#fff;font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px}
 
 .btn{width:100%;border:0;border-radius:11px;background:#b18c4e;color:white;font-size:16px;font-weight:700;padding:14px;margin-top:12px}
 
@@ -170,9 +171,9 @@ a{color:#26698a}
 
 <div class="row">
 
-<span>地金重量</span>
-
-<span id="net">—</span>
+<span style="display:inline-flex;align-items:center;gap:8px">地金重量 <span class="grade-bade" id="gradeBadge"></span></span>
+ 
+ <span id="net">—</span>
 
 </div>
 
@@ -477,6 +478,7 @@ function calc(){
  const gemHigh=highs[0]+highs[1];
 
  $('net').textContent=net.toFixed(1)+' g';
+       $('gradeBadge').textContent=$('grade').value;
 
  $('metal').textContent=fmt(metal)+' 円';
 
